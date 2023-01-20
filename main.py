@@ -5,7 +5,7 @@
 
 from datetime import datetime
 import paho.mqtt.client as mqtt
-import json, requests, threading, signal, sys, time
+import json, requests, threading, signal, sys, time, math
 
 def on_message(client, userdata, message):
     # Aanmaken van de payload
@@ -37,6 +37,11 @@ def on_message2(client, userdata, message):
     else:
         print("Mislukt: Payload verzenden naar database mislukt! (Stroommeting: " + payload["actorId"] + ")")
         
+        
+        
+def led_range(percentage, total_leds):
+    return math.ceil((percentage/100) * total_leds)        
+        
 def checkWijzigingenPomp():
     api_url = "https://hooyberghs-api.azurewebsites.net/api/pump"
     response = requests.get(api_url)
@@ -51,11 +56,19 @@ def checkWijzigingenPomp():
         for pump in data:
             current_input_value = pump["inputValue"]
             if current_input_value != previous_input_values[pump["id"]]:
+                
+                xrange_value = led_range(current_input_value, 30)
+                
+                
                 mqtt_topic = f"werf/actoren/actor_{pump['id']}"
-                client.publish(mqtt_topic, str(current_input_value))
+                
+                xmessage = str({"led": str(xrange_value), "input": str(current_input_value)})
+                # xmessage = str(xrange_value) + " " +str(current_input_value)
+                print(xmessage)
+                client.publish(mqtt_topic, xmessage)
                 print(f"Wijziging: {pump['name']} inputValue: {current_input_value}")
                 previous_input_values[pump["id"]] = current_input_value
-        time.sleep(5)
+        time.sleep(4)
         
 def checkWijzigingenPompOld():
     api_url = "https://hooyberghs-api.azurewebsites.net/api/oldpump"
@@ -71,11 +84,11 @@ def checkWijzigingenPompOld():
         for pump in data:
             current_input_value = pump["inputValue"]
             if current_input_value != previous_input_values[pump["id"]]:
-                mqtt_topic = f"werf/actoren/actor_{pump['id']}"
+                mqtt_topic = f"werf/actoren/old/actor_{pump['id']}"
                 client.publish(mqtt_topic, str(current_input_value))
                 print(f"Wijziging: {pump['name']} inputValue: {current_input_value}")
                 previous_input_values[pump["id"]] = current_input_value
-        time.sleep(5)      
+        time.sleep(4)      
         
         
 def signal_handler(sig, frame):
