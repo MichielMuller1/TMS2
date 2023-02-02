@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
 # TMS2 Raspberry Pi (Server) back-end script.
-# Dit script ............
 
 from datetime import datetime
 import paho.mqtt.client as mqtt
-import json, requests, threading, signal, sys, time, math, os
+import json, requests, threading, signal, sys, time, math, os, getpass
 
 # --
 
@@ -89,7 +88,6 @@ def checkStroomMetingWaterFlowOld(client, userdata, message):
     timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
     payload = json.loads(message.payload.decode())
     data = {"date": timestamp, "value": round(payload["stroomValue"], 2), "oldPumpId": payload["actorId"], "flowRate": round(payload["waterflow"], 3)}
-
     # Error check
     api_urlById = f'https://hooyberghs-api.azurewebsites.net/api/oldpump/{payload["actorId"]}'
     errorResponse = requests.get(api_urlById)
@@ -132,12 +130,8 @@ def checkPomp():
             if current_input_value != previous_input_values[pump["id"]]:
                 xrange_value = led_range(current_input_value, 30)
                 xrange_input = led_range(current_input_value, 255)
-
                 mqtt_topic = f"werf/actoren/actor_{pump['id']}"
-
                 xmessage = str({"led": str(xrange_value), "input": str(xrange_input)})
-                # xmessage = str(xrange_value) + " " +str(current_input_value)
-                print(xmessage)
                 client.publish(mqtt_topic, xmessage)
                 print(f"Wijziging: {pump['name']} inputValue: {current_input_value}")
                 previous_input_values[pump["id"]] = current_input_value
@@ -256,13 +250,14 @@ def checkErrorOldPump():
         # print("oude pomp errors -> ", errors)
 
 
+#Start Script
 print("MAIN: Started!")
 print("---Login first---")
 username = input("Gebruiker: ")
-password = input("Wachtwoord: ")
+password = getpass.getpass("Wachtwoord: ")
 os.system('clear')
 print("MAIN: Running!")
-# Set up the MQTT client (sensors)
+# Set up the MQTT client (Dieptesensor)
 client = mqtt.Client()
 client.username_pw_set(username, password)
 client.connect("localhost", 1883)
@@ -292,7 +287,7 @@ thread5 = threading.Thread(target=checkErrorSensor)
 thread6 = threading.Thread(target=checkErrorPump)
 thread7 = threading.Thread(target=checkErrorOldPump)
 
-thread1.start()
+# thread1.start()
 thread2.start()
 thread3.start()
 thread4.start()
